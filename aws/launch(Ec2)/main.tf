@@ -9,5 +9,5 @@ resource "aws_instance" "firstInstance" {
  	security_groups=["launch-wizard-9"]  
 	tags={
 		Name="firstTF"
-		}	  
+	}
 }
