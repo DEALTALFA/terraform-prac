@@ -12,6 +12,3 @@ resource "aws_instance" "firstInstance" {
     Name = "firstTF"
   }
 }
-output "name" {
-  value = aws_instance.firstInstance.public_ip
-}
