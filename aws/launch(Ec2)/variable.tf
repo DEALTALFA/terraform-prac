@@ -8,3 +8,7 @@ variable "aws_instance_type" {
   type        = string
   description = "variable for instance type"
 }
+variable "webserver" {
+  type = set(string)
+  default = ["web1","web2","web3"]
+}

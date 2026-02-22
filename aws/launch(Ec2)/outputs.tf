@@ -1,3 +1,3 @@
-output "name" {
-  value = aws_instance.firstInstance.public_ip
+output "Public-IP" {
+  value = aws_instance.look.public_ip
 }
