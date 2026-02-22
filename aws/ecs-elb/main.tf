@@ -1,8 +1,8 @@
 terraform {
   required_providers {
-    aws={
-        source = "hashicorp/aws"
-        version = "6.31"}
+    aws = {
+      source = "hashicorp/aws"
+    version = "6.31" }
   }
 }
 provider "aws" {
@@ -10,7 +10,7 @@ provider "aws" {
 }
 resource "aws_ecs_cluster" "ecs_cluster" {
   name     = var.ecs_cluster_name
-  region = "ap-south-1"
+  region   = "ap-south-1"
   tags     = {}
   tags_all = {}
   configuration {
@@ -29,12 +29,12 @@ resource "aws_ecs_task_definition" "my_ecs_task" {
     environment      = []
     environmentFiles = []
     essential        = true
-    image            = "docker.io/dealtalfa/python-ip:v1"
+    image            = var.container_image
     logConfiguration = {
       logDriver = "awslogs"
       options = {
         awslogs-create-group  = "true"
-        awslogs-group         = "/ecs/demo-ecs-python"
+        awslogs-group         = "/ecs/${var.task_definition_name}"
         awslogs-region        = "ap-south-1"
         awslogs-stream-prefix = "ecs"
       }
@@ -58,7 +58,7 @@ resource "aws_ecs_task_definition" "my_ecs_task" {
   cpu                      = "512"
   enable_fault_injection   = false
   execution_role_arn       = "arn:aws:iam::502016372601:role/ecsTaskExecutionRole"
-  family                   = "demo-ecs-python"
+  family                   = var.task_definition_name
   ipc_mode                 = null
   memory                   = "1024"
   network_mode             = "awsvpc"
@@ -165,7 +165,108 @@ resource "aws_lb" "ecs_lb" {
   }
 }
 
+resource "aws_lb_listener" "front_end" {
+  load_balancer_arn                    = aws_lb.ecs_lb.arn
+  port                                 = 5000
+  protocol                             = "HTTP"
+  region                               = aws_lb.ecs_lb.region
+  routing_http_response_server_enabled = true
+  tags                                 = {}
+  tags_all                             = {}
+  default_action {
+    order            = 1
+    target_group_arn = aws_lb_target_group.ecs_lb_target_group.arn
+    type             = "forward"
+    forward {
+      stickiness {
+        duration = 3600
+        enabled  = false
+      }
+      target_group {
+        arn    = aws_lb_target_group.ecs_lb_target_group.arn
+        weight = 1
+      }
+    }
+  }
+}
+
+resource "aws_security_group" "ecs_lb_sg" {
+  description = "SG for load balancer"
+  name                   = "ELB-SG"
+  region                 = "ap-south-1"
+  revoke_rules_on_delete = null
+  tags                   = {}
+  tags_all               = {}
+  vpc_id                 = "vpc-b1f919da"
+  egress = [{
+    cidr_blocks      = ["0.0.0.0/0"]
+    description      = ""
+    from_port        = 0
+    ipv6_cidr_blocks = []
+    prefix_list_ids  = []
+    protocol         = "-1"
+    security_groups  = []
+    self             = false
+    to_port          = 0
+  }]
+  ingress = [{
+    cidr_blocks      = ["0.0.0.0/0"]
+    description      = ""
+    from_port        = 5000
+    ipv6_cidr_blocks = ["::/0"]
+    prefix_list_ids  = []
+    protocol         = "tcp"
+    security_groups  = []
+    self             = false
+    to_port          = 5000
+  }]
+  
+}
+
+resource "aws_security_group" "ecs_sg" {
+  description = "SG for ECS(service/Tasks)"
+  egress = [{
+    cidr_blocks      = ["0.0.0.0/0"]
+    description      = ""
+    from_port        = 443
+    ipv6_cidr_blocks = []
+    prefix_list_ids  = []
+    protocol         = "tcp"
+    security_groups  = []
+    self             = false
+    to_port          = 443
+  }]
+  ingress = [{
+    cidr_blocks      = ["202.164.138.99/32"]
+    description      = ""
+    from_port        = 5000
+    ipv6_cidr_blocks = []
+    prefix_list_ids  = []
+    protocol         = "tcp"
+    security_groups  = []
+    self             = false
+    to_port          = 5000
+    }, {
+    cidr_blocks      = []
+    description      = ""
+    from_port        = 0
+    ipv6_cidr_blocks = []
+    prefix_list_ids  = []
+    protocol         = "-1"
+    security_groups  = [aws_security_group.ecs_lb_sg.id]
+    self             = false
+    to_port          = 0
+  }]
+  name                   = "ECS-CG"
+  region                 = "ap-south-1"
+  revoke_rules_on_delete = null
+  tags                   = {}
+  tags_all               = {}
+  vpc_id                 = "vpc-b1f919da"
+}
+
+
 # import {
-#   to=aws_lb.ecs_lb
-#   id="arn:aws:elasticloadbalancing:ap-south-1:502016372601:loadbalancer/app/Flask-ECS-LB/8d102395e790e7ff"
+#   to = aws_security_group.ecs_sg
+#   id = "sg-0df1c93d455b690ba"
 # }
